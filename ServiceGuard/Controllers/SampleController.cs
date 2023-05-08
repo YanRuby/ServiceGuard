@@ -30,18 +30,24 @@ namespace ServiceGuard.Controllers {
             // ex: public string Name { get; set; }
             // ...
 
+            string WebApiException.IResult.ToString() {
+                return base.ToString() + " {\n"
+                    + $"  >> ResultCode: {ResultCode}\n"
+                    + $"  >> ResultMsg: {ResultMsg}\n"
+                    + "}\n";
+            }
+
         }
 
         protected override ILogger Logger { get; set; }
 
         public SampleController(ILogger<SampleController> logger) {
-            Console.WriteLine("TTT 1");
             Logger = logger;
         }
 
         protected override bool PreCheckValidData() {
 
-            // 通訊鑰 (身份驗證)
+            /*// 通訊鑰 (身份驗證)
             if (JObjRequestData == null) return false;
             var parameter = @"session_key".Split(',');
             foreach (var item in parameter) {
@@ -51,8 +57,16 @@ namespace ServiceGuard.Controllers {
                     Logger.LogError($"Input Error:{item}");
                     return false;
                 }
-            }
-
+            }*/
+            var tmp = (WebApiException.IResult)ResponseData;
+            var tip = PreCheckSessionKey(ref tmp);
+            ResponseData = (ResponseDataModel)tmp;
+            Console.WriteLine("Data: \n" + ResponseData.ToString() + " {\n"
+                    + $"  >> ResultCode: {ResponseData.ResultCode}\n"
+                    + $"  >> ResultMsg: {ResponseData.ResultMsg}\n"
+                    + "}\n"
+            );
+            Console.WriteLine($"Test: {tip}");
             // todo: 如需額外的前置檢查，請在下方繼續設置驗證關卡
             // ...
 
@@ -122,6 +136,7 @@ namespace ServiceGuard.Controllers {
 #if DEBUG_RequestData
             // 測試流程：測試通訊封包是否暢通
             await base.Run();
+            Logger.LogInformation($">>>> [FromBody]: {RequestData.Id}, {RequestData.Password}");
 #else
             // 預設流程 | 預設策略
             base.Run();

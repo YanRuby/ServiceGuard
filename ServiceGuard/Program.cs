@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
+using ServiceGuard.Middlewares;
+
 // Main Program
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +21,8 @@ configuration.AddEnvironmentVariables();
 builder.Services.AddControllers();
 //builder.Services.AddControllersWithViews(); // 控制器路由視圖服務 index.cshtml
 
+builder.Services.AddMvcCore().AddNewtonsoftJson();
+
 /************************************************
 * OpenApi: Swagger >> [/swagger/index.html]
 */
@@ -35,9 +39,11 @@ builder.Services.AddCors(options => {
     options.AddPolicy("CorsPolicy", builder => {
         builder
         //.WithOrigins(AppSettings.Origins.ToArray())
+        .AllowAnyOrigin()       // 任何來源
         .AllowAnyHeader()       // 任何標頭
         .AllowAnyMethod()       // 任何方法
-        .AllowCredentials();    // 允許携帶身份驗證信息 (JWT)
+        //.AllowCredentials()    // 允許携帶身份驗證信息 (JWT)
+        ;
     });
 });
 
@@ -104,10 +110,30 @@ app.UseCors("CorsPolicy");        // 啓用-跨域策略
 app.UseAuthentication();          // 啓用-身份驗證
 app.UseAuthorization();           // 啓用-授權功能
 
+// 備份-請求正文
+//app.UseMiddleware<RequestBodyReaderMiddleware>();
+app.Use(async (context, next) => { // RequestBodyReader
+
+    var request = context.Request;
+    if (request.Method != HttpMethods.Post) {
+        await next(context);
+        return;
+    }
+
+    // 讀取-請求正文
+    using MemoryStream ms = new(); {
+        await request.BodyReader.CopyToAsync(ms);
+        ms.Seek(0, SeekOrigin.Begin);
+        request.Body = ms;
+    }
+
+    // 執行-下一個中間件
+    await next(context);
+});
+
 /************************************************
 * IEndpointRouterBuilder
 */
-
 app.MapControllers();               // 將控制器類型映射到 URL 路由       [Services >> AddControllers()]
 app.MapControllerRoute(             // 預設 URL 路由頁面 index.cshtml   [Services >> AddControllers() | AddControllersWithViews()]
     name: "default",

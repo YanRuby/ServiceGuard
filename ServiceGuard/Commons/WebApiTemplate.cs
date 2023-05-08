@@ -6,6 +6,8 @@ using System.IO;
 using System.Reflection.PortableExecutable;
 using System.Text;
 
+using Microsoft.AspNetCore.Http.Features;
+
 namespace ServiceGuard.Commons {
 
     /// <summary>
@@ -19,7 +21,7 @@ namespace ServiceGuard.Commons {
 
         #region Properties
         protected abstract ILogger Logger { get; set; }
-        protected JObject? JObjRequestData { get; private set; }
+        protected JObject? JObjRequestData { get; private set; } // 用於身份檢查
         protected TRequestData RequestData { get; private set; }
         protected TResponseData ResponseData = new(); // { get; set; } // struct 是值類型，屬性取得的是複製項，非參考項.
         #endregion
@@ -42,7 +44,26 @@ namespace ServiceGuard.Commons {
         }
 
         /// <summary>
-        /// 參數驗證
+        /// 通訊身份驗證
+        /// </summary>
+        /// <returns></returns>
+        protected virtual bool PreCheckSessionKey(ref WebApiException.IResult result) {
+            WebApiException.BuildResultInfo(ref result, WebApiException.Code.SessionFail);
+            Console.WriteLine("PreCheckSKey: \n" + result.ToString());
+
+            /*if (JObjRequestData == null) return false;
+            var parameter = @"sessionKey".Split(',');
+            foreach (var item in parameter) {
+                if (JObjRequestData.SelectToken(item) == null) {
+                    WebApiException.BuildResultInfo(ref result, WebApiException.Code.SessionFail);
+                    return false;
+                }
+            }*/
+            return true;
+        }
+
+        /// <summary>
+        /// 數據有效性驗證
         /// </summary>
         /// <returns>驗證是否通過</returns>
         protected virtual bool PreCheckValidData() => true;
@@ -64,54 +85,20 @@ namespace ServiceGuard.Commons {
         /// <returns>響應内容</returns>
         protected virtual async Task<object> Run() {
 
-            /*using (var memoryStream = new MemoryStream()) {
-                Request.EnableBuffering();
-                Request.Body.Seek(0, SeekOrigin.Begin);
-                await Request.Body.CopyToAsync(memoryStream);
-                memoryStream.Seek(0, SeekOrigin.Begin);
+            //Request.EnableBuffering();    // 啓用-緩存
+            //Request.Body.Position = 0;    // 重置-讀寫頭位置
+            using (StreamReader reader = new (Request.Body)) {
+                Request.Body.Seek(0, SeekOrigin.Begin); // 重置-讀寫頭位置
 
-                // 在這裡對內容進行處理
-                using (var reader = new StreamReader(memoryStream)) {
-                    var content = await reader.ReadToEndAsync();
-                    Console.WriteLine($"Request: {content}");
-                }
-            }
-*/
-            /*using (var memoryStream = new MemoryStream()) {
-                Console.WriteLine($"Request ContentLen: {Request.ContentLength}");
-                Console.WriteLine($"Request BodyLen: {Request.Body}");
-
-
-                //Request.Body.Position = 0;
-                //await Request.Body.SeekAsync(0, SeekOrigin.Begin);
-                await Request.Body.CopyToAsync(memoryStream);
-                Console.WriteLine($"MS: {memoryStream.Length}");
-
-                memoryStream.Seek(0, SeekOrigin.Begin);
-                using (var reader = new StreamReader(memoryStream)) {
-                    
-                    var tmp = await reader.ReadToEndAsync();
-                    Console.WriteLine($"Test: {tmp}");
-
-                    JObjRequestData = JsonConvert.DeserializeObject<JObject>(tmp);
-                    
-                }
-            }*/
-
-            //return BuildResponseObject();
-            
-            using (StreamReader reader = new StreamReader(Request.Body)) {
-                Request.EnableBuffering();
-                Request.Body.Seek(0, SeekOrigin.Begin);
-                Request.Body.Position = 0;
-                Console.WriteLine($"Length: {Request.ContentLength}, {Request.ContentType}");
+                // 獲取-請求正文内容
                 var content = await reader.ReadToEndAsync();
 
                 JObjRequestData = JsonConvert.DeserializeObject<JObject>(content);
-                Console.WriteLine($"Test: {content.Length}");
+                Logger.LogInformation($">>>> Request.Body: {content.Length}\n{content}");
             }
-            return BuildResponseObject();
 
+            PreCheckValidData();
+            return BuildResponseObject();
 
             if (PreCheckValidData()) {
                 LogInformation($"Data_Request: {JsonConvert.SerializeObject(RequestData)}");

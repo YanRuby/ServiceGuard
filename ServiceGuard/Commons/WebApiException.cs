@@ -7,9 +7,11 @@ namespace ServiceGuard.Commons {
         public interface IResult {
             public int ResultCode { get; set; }
             public string ResultMsg { get; set; }
+
+            public string ToString();
         }
 
-        public ErrorCode ErrCode { get; set; }
+        public Code ResultCode { get; set; }
 
         public WebApiException(string message) : base(message) {
 
@@ -26,12 +28,34 @@ namespace ServiceGuard.Commons {
             return responseData;
         }
 
+        public static void BuildResultInfo(ref IResult responseData, Code code) {
+
+            string? msg = ResultMsg(code);
+            if(msg == null) {
+                responseData.ResultCode = -1;
+                responseData.ResultMsg = $"Undefine: {code}";
+            } else {
+                responseData.ResultCode = (int)code;
+                responseData.ResultMsg = msg;
+            }
+
+        }
+
         public void Log() {
             
         }
 
-        public enum ErrorCode {
+        public enum Code {
+            Success = 0,            // 請求成功
+            SessionFail = 101,      // 通訊失敗(身份不匹配)
+        }
 
+        public static string? ResultMsg(Code code) {
+            return code switch {
+                Code.Success => "Success",
+                Code.SessionFail => "Session Fail",
+                _ => null,
+            };
         }
 
     }
