@@ -38,7 +38,7 @@ builder.Services.AddCors(options => {
     // 跨域策略名稱: CorsPolicy
     options.AddPolicy("CorsPolicy", builder => {
         builder
-        //.WithOrigins(AppSettings.Origins.ToArray())
+        //.WithOrigins(AppSettings.Origins.ToArray()) // 跨域許可
         .AllowAnyOrigin()       // 任何來源
         .AllowAnyHeader()       // 任何標頭
         .AllowAnyMethod()       // 任何方法
@@ -85,7 +85,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 * 資料庫
 */
 // pgsql
-//builder.Services.AddEntityFrameworkNpgsql().AddDbContext<Models.O2OEntities>();
+builder.Services.AddEntityFrameworkNpgsql().AddDbContext<ServiceGuard.Databases.DbEntities>();
+builder.Services.AddLogging();
 // mssql
 
 var app = builder.Build();
