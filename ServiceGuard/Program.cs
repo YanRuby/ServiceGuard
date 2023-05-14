@@ -27,7 +27,9 @@ builder.Services.AddMvcCore().AddNewtonsoftJson();
 * OpenApi: Swagger >> [/swagger/index.html]
 */
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options => {
+    options.CustomSchemaIds(type => $"{type.Name}_{System.Guid.NewGuid()}");
+});
 
 /************************************************
 * 跨域策略
