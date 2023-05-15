@@ -21,18 +21,22 @@ configuration.AddEnvironmentVariables();
 builder.Services.AddControllers();
 //builder.Services.AddControllersWithViews(); // 控制器路由視圖服務 index.cshtml
 
+/************************************************
+* NewtonsoftJson
+*/
 builder.Services.AddMvcCore().AddNewtonsoftJson();
 
 /************************************************
-* OpenApi: Swagger >> [/swagger/index.html]
+* OpenApi: Swagger >> [ .../swagger/index.html ]
 */
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options => {
-    options.CustomSchemaIds(type => $"{type.Name}_{System.Guid.NewGuid()}");
+    // 避免 Swagger 的 SchemaId 相同 (以'名稱_Id'避免相同名稱)
+    options.CustomSchemaIds(type => $"{type.Name}_{Guid.NewGuid()}");
 });
 
 /************************************************
-* 跨域策略
+* CorsPolicy 跨域策略
 * >> 允許來自不同源(域名、端口或協議)的 HTTP請求
 * >> 預設情況瀏覽器會阻擋跨域請求，以避免惡意攻擊
 */
@@ -84,13 +88,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 });
 
 /************************************************
-* 資料庫
+* Database 資料庫
 */
-// pgsql
+// PG-SQL
 builder.Services.AddEntityFrameworkNpgsql().AddDbContext<ServiceGuard.Databases.DbEntities>();
-builder.Services.AddLogging();
-// mssql
+// MS-SQL
+// todo:
 
+/************************************************
+* Others | Test
+*/
+
+builder.Services.AddLogging(); // 依賴注入: ILogger
 var app = builder.Build();
 #endregion
 
@@ -118,10 +127,12 @@ app.UseAuthorization();           // 啓用-授權功能
 app.Use(async (context, next) => { // RequestBodyReader
 
     var request = context.Request;
-    if (request.Method != HttpMethods.Post) {
+
+    // 一般情況只有 Post 會讀請求正文，其他都讀 URL
+    /*if (request.Method != HttpMethods.Post) {
         await next(context);
         return;
-    }
+    }*/
 
     // 讀取-請求正文
     using MemoryStream ms = new(); {
@@ -147,5 +158,6 @@ app.MapControllerRoute(             // 預設 URL 路由頁面 index.cshtml   [S
 /************************************************
 * IHostBuilder
 */
+
 app.Run();
 #endregion

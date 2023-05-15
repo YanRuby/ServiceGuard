@@ -1,20 +1,105 @@
-﻿#define DEBUG_RequestData
-
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Cors;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json;
 using ServiceGuard.Commons;
 using ServiceGuard.Models;
 using ServiceGuard.Databases;
-using ServiceGuard.Exceptions;
 
 namespace ServiceGuard.Controllers {
 
     [ApiController]                 // 標記-此類作爲API
     [Route("api/[controller]")]     // 啓用-URL路由
     [EnableCors("CorsPolicy")]      // 啓用-跨域策略 (似情況開啓，請遵循安全策略)
-    public class SampleController : WebApiTemplate
+    public partial class SampleController : WebApiTemplate
+        <SampleController.RequestDataModel, SampleController.ResponseDataModel> {
+
+        /// <summary>
+        /// API入口 ( 當收到請求時執行 )
+        /// </summary>
+        /// <param name="value">請求内容</param>
+        /// <returns>響應結果</returns>
+        [HttpPost] // 請求數據在數據體
+        public virtual async Task<object> Post([FromBody] RequestDataModel value) {
+            RequestData = value;    // 收到-請求内容
+            await BuildRequest();   // 解析-請求内容
+
+            /*  **前置檢查-説明**
+            *   - 1：檢查請求所携帶的請求正文是否符合此<資料模型(RequestDataModel)>
+            *   - 2：檢查請求正文是否携帶必要欄位資訊以做校驗等
+            *   - 原因：排除 | 過濾不符條件的請求，以提高整體系統效率
+            *   - 注意：過多的檢查會降低整體效率!!! 如非必要請不要涵蓋所有欄位進行檢查，可空欄不予以檢查
+            *   + 方法：PreChecker() 為前置檢查流程，檢查條件、流程如需調整可於此方法内調整
+            */
+
+            // 前置檢查
+            if (
+                // 資料頭(Head)
+                CheckValidDataHead(@"time") == true
+                // 資料體(Body)
+                && CheckValidDataBody(@"sessionKey") == true
+                // 跨域資訊(CorsPolicy)
+                && CheckHasCorsPolicy() == true
+                // 高速資料庫比對資料(Redis)
+                && ComparisonData() == true
+                // 數據解密(Decription)
+                && DataDecription() == true
+                )
+            // 放行(Pass) 前置檢查全部通過
+            {
+                // 處理資料
+                if (ProcessData() == true) {
+                    BuildResult(WebApiResult.Code.Success);
+                }
+            }
+
+            BuildResponse(); // 建立-響應
+            Logger.LogInformation($"{ResponseData}\n"); // Debug log
+
+            return ResponseData; // 回復請求結果
+        }
+
+        [HttpGet] // 請求數據附加在 URL
+        public virtual async Task<object> Get() {
+            //RequestData = value;    // 收到-請求内容
+            await BuildRequest();   // 解析-請求内容
+
+            /*  **前置檢查-説明**
+            *   - 1：檢查請求所携帶的請求正文是否符合此<資料模型(RequestDataModel)>
+            *   - 2：檢查請求正文是否携帶必要欄位資訊以做校驗等
+            *   - 原因：排除 | 過濾不符條件的請求，以提高整體系統效率
+            *   - 注意：過多的檢查會降低整體效率!!! 如非必要請不要涵蓋所有欄位進行檢查，可空欄不予以檢查
+            *   + 方法：PreChecker() 為前置檢查流程，檢查條件、流程如需調整可於此方法内調整
+            */
+
+            // 前置檢查
+            if (
+                // 資料頭(Head)
+                CheckValidDataHead(@"time") == true
+                // 資料體(Body)
+                && CheckValidDataBody(@"sessionKey") == true
+                // 跨域資訊(CorsPolicy)
+                && CheckHasCorsPolicy() == true
+                // 高速資料庫比對資料(Redis)
+                && ComparisonData() == true
+                // 數據解密(Decription)
+                && DataDecription() == true
+                )
+            // 放行(Pass) 前置檢查全部通過
+            {
+                // 處理資料
+                if (ProcessData() == true) {
+                    BuildResult(WebApiResult.Code.Success);
+                }
+            }
+
+            BuildResponse(); // 建立-響應
+            Logger.LogInformation($"{ResponseData}\n"); // Debug log
+
+            return ResponseData; // 回復請求結果
+        }
+
+    }
+
+    public partial class SampleController : WebApiTemplate
         <SampleController.RequestDataModel, SampleController.ResponseDataModel> {
 
         #region DataModel 資料模型
@@ -27,8 +112,7 @@ namespace ServiceGuard.Controllers {
             public string Password { get; set; }
             #endregion
         }
-
-        public struct ResponseDataModel : Exceptions.IResult {
+        public struct ResponseDataModel : Commons.IResult {
             public int ResultCode { get; set; }     // 響應代碼 ( 操作成功時為 0 )
             public string ResultMsg { get; set; }   // 響應資訊 ( 錯誤時應記錄錯誤資訊 )
 
@@ -40,7 +124,7 @@ namespace ServiceGuard.Controllers {
             #endregion
 
             public override string ToString() {
-                return base.ToString() + " {\n"
+                return "\n" + base.ToString() + " {\n"
                     + $"  >> ResultCode: {ResultCode}\n"
                     + $"  >> ResultMsg: {ResultMsg}\n"
                     + "}\n";
@@ -48,79 +132,23 @@ namespace ServiceGuard.Controllers {
         }
         #endregion
 
+        #region Property 屬性
         protected override ILogger Logger { get; set; }
+        #endregion
 
+        /// <summary>
+        /// Constructor 構建式
+        /// </summary>
+        /// <param name="logger">依賴注入: 日志</param>
         public SampleController(ILogger<SampleController> logger) {
             Logger = logger;
+            result = ResponseData;
         }
 
-        #region PreChecking 前置檢查
-        /*  **前置檢查-説明**
-        *   - 1：檢查請求所携帶的請求正文是否符合此<資料模型(RequestDataModel)>
-        *   - 2：檢查請求正文是否携帶必要欄位資訊以做校驗等
-        *   - 原因：排除 | 過濾不符條件的請求，以提高整體系統效率
-        *   - 注意：過多的檢查會降低整體效率!!! 如非必要請不要涵蓋所有欄位進行檢查，可空欄不予以檢查
-        *   + 方法：PreChecker() 為前置檢查流程，檢查條件、流程如需調整可於此方法内調整
-        */
-
-        protected override bool PreChecker() {
-            /*  **檢查流程**
-            *   資料頭(Head) >> 資料體(Body) >> 跨域資訊(CorsPolicy) >> 高速資料庫比對身份(Redis) >> 數據解密(Decription) >> 放行(Pass)
-            */
-
-            // 資料頭(Head)
-            if (CheckValidDataHead(@"time") == false) return false;
-            // 資料體(Body)
-            if (CheckValidDataBody(@"sessionKey") == false) return false;
-            // 跨域資訊(CorsPolicy)
-            if (CheckHasCorsPolicy() == false) return false;
-            // 高速資料庫比對資料(Redis)
-            if (ComparisonData() == false) return false;
-            // 數據解密(Decription)
-            if (DataDecription() == false) return false;
-
-            // 放行(Pass) 前置檢查全部通過
-            return true;
-        }
-        protected override bool CheckValidDataHead(string parameter) {
-            if (CheckValidData(parameter, "header") == false) {
-                ResponseData = (ResponseDataModel)Result.BuildInfo(ResponseData, Result.Code.Fail);
-                return false;
-            }
-            return true;
-        }
-        protected override bool CheckValidDataBody(string parameter) {
-            if(CheckValidData(parameter) == false) {
-                ResponseData = (ResponseDataModel)Result.BuildInfo(ResponseData, Result.Code.Fail);
-                return false;
-            }
-            return true;
-        }
-        protected override bool CheckHasCorsPolicy() {
-            /*if (AppSettings.Origins.Contains(Request.Headers["Origin"].ToString()) == false) {
-                OutputData.result_code = 103;
-                logger.LogWarning("request is not valid! origin:{0} not in ", Request.Headers["Origin"].ToString(), AppSettings.Origins);
-                return false;
-            }*/
-            return true;
-        }
-        protected override bool ComparisonData() {
-            /*var machine = RedisHelper.SessionCustomer(InputData.session_key);
-            if (machine.customerIdx == -1) {
-                OutputData.result_code = 104;
-                return false;
-            }*/
-            return true;
-        }
-        protected override bool DataDecription() {
-            return base.DataDecription();
-        }
-        #endregion
         #region ProcessData 資料處理
         /*  **資料處理-説明**
         *   - 
         */
-
         protected override bool ProcessData() {
             try {
                 // 資料庫查詢時所需要的必要資料欄位
@@ -131,7 +159,9 @@ namespace ServiceGuard.Controllers {
 
                 // 呼叫-資料庫
                 if (DbEntities.UserLogin(query, out SampleDataModel.Result data) == false) {
-                    ResponseData = (ResponseDataModel)Result.BuildInfo(ResponseData, Result.Code.Fail);
+                    BuildResult(WebApiResult.Code.CheckFailed_ValidData,
+                    $""
+                );
                     return false;
                 }
 
@@ -149,7 +179,9 @@ namespace ServiceGuard.Controllers {
 
 #if DEBUG
                 // 暴露例外訊息不安全
-                ResponseData = (ResponseDataModel)Result.BuildExceptionInfo(ResponseData, ex.Message);
+                BuildResult(WebApiResult.Code.CheckFailed_ValidData,
+                    $""
+                );
 #else
                 ResponseData = (ResponseDataModel)Result.BuildExceptionInfo(ResponseData);
 #endif
@@ -159,23 +191,8 @@ namespace ServiceGuard.Controllers {
         }
         #endregion
 
-        protected override async Task<object?> Run() {
-            await base.Run();
-
-            // 前置檢查 & 處理請求
-            if (PreChecker() == true) {
-                // 處理資料
-                if (ProcessData() == true) {
-                    ResponseData = (ResponseDataModel)Result.BuildSuccessInfo(ResponseData);
-                } // else >> 已於 ProcessData() 方法中定義錯誤資訊
-            } // else >> 已於 PreChecker() 方法中定義錯誤資訊
-
-            // 響應請求
-            Logger.LogInformation(
-                $"\n>>>>> ResponseData:\n{ResponseData}\n"
-            );
-
-            return ResponseData;
+        protected override void BuildResponse() {
+            ResponseData = (ResponseDataModel)result;
         }
 
     }

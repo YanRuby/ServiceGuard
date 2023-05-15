@@ -1,11 +1,10 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using ServiceGuard.Exceptions;
 
 namespace ServiceGuard.Models {
 
     public class SampleDataModel {
 
-        public class Result : Exceptions.IResult {
+        public class Result : Commons.IResult {
             public int ResultCode { get; set; } = -1;
             public string ResultMsg { get; set; } = "";
 
