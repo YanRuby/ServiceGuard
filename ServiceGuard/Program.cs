@@ -91,7 +91,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 * Database 資料庫
 */
 // PG-SQL
-builder.Services.AddEntityFrameworkNpgsql().AddDbContext<ServiceGuard.Databases.DbEntities>();
+builder.Services.AddEntityFrameworkNpgsql().AddDbContext<ServiceGuard.Sample.Databases.Npgsql_UserManagerDbCtx>();
 // MS-SQL
 // todo:
 

@@ -1,10 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Cors;
 using ServiceGuard.Commons;
-using ServiceGuard.Models;
-using ServiceGuard.Databases;
+using ServiceGuard.Sample.Databases;
+using ServiceGuard.Sample.Models;
 
-namespace ServiceGuard.Controllers {
+// 注意: 此命名空間為：參考範本，禁止使用範本空間 ( 即：ServiceGuard.Sample 開頭的命名空間 )
+namespace ServiceGuard.Sample.Controllers {
 
     [ApiController]                 // 標記-此類作爲API
     [Route("api/[controller]")]     // 啓用-URL路由
@@ -96,6 +97,31 @@ namespace ServiceGuard.Controllers {
 
             return ResponseData; // 回復請求結果
         }
+        
+        [HttpDelete]
+        public virtual async Task<object> Delete() {
+            return ResponseData; // 回復請求結果
+        }
+
+        [HttpPut]
+        public virtual async Task<object> Put() {
+            return ResponseData; // 回復請求結果
+        }
+
+        [HttpPatch]
+        public virtual async Task<object> Patch() {
+            return ResponseData; // 回復請求結果
+        }
+
+        [HttpHead]
+        public virtual async Task<object> Head() {
+            return ResponseData; // 回復請求結果
+        }
+
+        [HttpOptions]
+        public virtual async Task<object> Options() {
+            return ResponseData; // 回復請求結果
+        }
 
     }
 
@@ -132,17 +158,18 @@ namespace ServiceGuard.Controllers {
         }
         #endregion
 
-        #region Property 屬性
         protected override ILogger Logger { get; set; }
-        #endregion
+
+        protected Npgsql_UserManagerDbCtx dbContext;
 
         /// <summary>
         /// Constructor 構建式
         /// </summary>
         /// <param name="logger">依賴注入: 日志</param>
-        public SampleController(ILogger<SampleController> logger) {
+        public SampleController(Npgsql_UserManagerDbCtx dbContext, ILogger<SampleController> logger) {
             Logger = logger;
             result = ResponseData;
+            this.dbContext = dbContext;
         }
 
         #region ProcessData 資料處理
@@ -152,25 +179,40 @@ namespace ServiceGuard.Controllers {
         protected override bool ProcessData() {
             try {
                 // 資料庫查詢時所需要的必要資料欄位
-                SampleDataModel.Query query = new() {
+
+
+                UserDataModel.Login.Linq linq = new() {
                     Id = RequestData.Id,
                     Password = RequestData.Password,
                 };
 
                 // 呼叫-資料庫
-                if (DbEntities.UserLogin(query, out SampleDataModel.Result data) == false) {
-                    BuildResult(WebApiResult.Code.CheckFailed_ValidData,
-                    $""
-                );
+                var isFound = dbContext.Login(linq, out UserDataModel.Login.Result? data);
+
+                // 未查詢到結果
+                if(isFound == false) {
+                    BuildResult(WebApiResult.Code.CheckFailed_ValidData);
                     return false;
                 }
+                // else 查詢到結果
 
-                // 寫入-響應正文
-                {
+                // 資料不爲空
+                if (data != null) {
+
+                    // 寫入-響應正文
                     ResponseData.SessionKey = data.SessionKey;
+                    // More...
+
+                    return true;
                 }
 
+                // For Debug
+                Logger.LogInformation("Linq result data is null!");
+                BuildResult(WebApiResult.Code.CheckFailed_ValidData);
+                return false;
             }
+
+            // 捕獲例外狀況
             catch (Exception ex) {
 #pragma warning disable CA2254
                 Logger.LogError(ex.Message);
@@ -179,18 +221,19 @@ namespace ServiceGuard.Controllers {
 
 #if DEBUG
                 // 暴露例外訊息不安全
-                BuildResult(WebApiResult.Code.CheckFailed_ValidData,
-                    $""
-                );
+                BuildResult(WebApiResult.Code.CheckFailed_ValidData);
 #else
                 ResponseData = (ResponseDataModel)Result.BuildExceptionInfo(ResponseData);
 #endif
                 return false;
             }
-            return true;
+
         }
         #endregion
 
+        /// <summary>
+        /// **建立-響應**
+        /// </summary>
         protected override void BuildResponse() {
             ResponseData = (ResponseDataModel)result;
         }
