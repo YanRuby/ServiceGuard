@@ -201,18 +201,18 @@ namespace ServiceGuard.Sample.Controllers {
         public SampleUserDataController(ILogger<SampleUserDataController> logger, Npgsql_UserManagerDbCtx dbContext) {
             Logger = logger;
             UserMgrDbCtx = dbContext;
-            result = ResponseData;
 
             ResponseData.Data = new();
+            result = ResponseData;
         }
 
         /// <summary>
         /// **建立-響應**
         /// </summary>
         protected override void BuildResponse() {
-            //ResponseData = (ResponseDataModel)result; // BUG ? 資料會不見
-            ResponseData.ResultCode = result.ResultCode;
-            ResponseData.ResultMsg = result.ResultMsg;
+            ResponseData = (ResponseDataModel)result; // BUG ? 資料會不見
+            //ResponseData.ResultCode = result.ResultCode;
+            //ResponseData.ResultMsg = result.ResultMsg;
         }
 
     }

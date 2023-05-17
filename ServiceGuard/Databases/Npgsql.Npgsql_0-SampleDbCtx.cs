@@ -65,11 +65,6 @@ namespace ServiceGuard.Sample.Databases {
         * 
         */
 
-        // 假資料模型實體
-        UserDataModel.Login.Result _loginResult;
-        UserDataModel.User.Result _userResult;
-        List<UserDataModel.User.Result> _userResultList;
-
         /// <summary>
         /// 用戶-登入
         /// </summary>
@@ -79,10 +74,9 @@ namespace ServiceGuard.Sample.Databases {
         public bool Login(UserDataModel.Login.Linq parameter, out UserDataModel.Login.Result? result) {
 #if DEBUG_UseFakeData
             // 使用模擬資料
-            _loginResult = new() {
+            result = new() {
                 SessionKey = "FakeData_SKey",
             };
-            result = _loginResult;
             return true;
 #else
             /* 建立-查詢指令
@@ -120,13 +114,12 @@ namespace ServiceGuard.Sample.Databases {
         /// <returns></returns>
         public bool FetchUserById(string id, out UserDataModel.User.Result? result) {
 #if DEBUG_UseFakeData
-            _userResult = new() {
+            result = new() {
                 Id = "FakeData_123456",
                 Name = "FakeData_Alan",
                 Gender = "FakeData_Male",
                 Email = "FakeData_abc123@gmail.com",
             };
-            result = _userResult;
             return true;
 #else
             /* 建立-查詢指令
@@ -163,14 +156,13 @@ namespace ServiceGuard.Sample.Databases {
         /// <returns></returns>
         public bool FetchUserByName(string name, out List<UserDataModel.User.Result>? resultList) {
 #if DEBUG_UseFakeData
-            _userResultList = Enumerable.Range(1, 5).Select(index => new UserDataModel.User.Result {
+            resultList = Enumerable.Range(1, 5).Select(index => new UserDataModel.User.Result {
                 Id = "FakeData_123456",
                 Name = "FakeData_Alan",
                 Gender = "FakeData_Male",
                 Email = "FakeData_abc123@gmail.com",
             })
             .ToList();
-            resultList = _userResultList;
             return true;
 #else
             /* 建立-查詢指令

@@ -165,6 +165,8 @@ namespace ServiceGuard.Sample.Controllers {
         public SampleUserLoginController(ILogger<SampleUserLoginController> logger, Npgsql_UserManagerDbCtx dbContext) {
             Logger = logger;
             UserMgrDbCtx = dbContext;
+
+            ResponseData.SessionKey = "Test"; // ??
             result = ResponseData;
         }
 
@@ -172,9 +174,9 @@ namespace ServiceGuard.Sample.Controllers {
         /// **建立-響應**
         /// </summary>
         protected override void BuildResponse() {
-            //ResponseData = (ResponseDataModel)result; // BUG ? 資料會不見
-            ResponseData.ResultCode = result.ResultCode;
-            ResponseData.ResultMsg = result.ResultMsg;
+            ResponseData = (ResponseDataModel)result; // BUG ? 資料會不見
+            //ResponseData.ResultCode = result.ResultCode;
+            //ResponseData.ResultMsg = result.ResultMsg;
         }
 
     }
