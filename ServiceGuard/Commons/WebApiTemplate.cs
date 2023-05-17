@@ -124,6 +124,7 @@ namespace ServiceGuard.Commons {
         /// </summary>
         /// <returns>是否符合及携帶跨域來源</returns>
         protected virtual bool CheckHasCorsPolicy() {
+            return true; // Undone: 未準備好跨域許可
             if (AppSettings.Origins.Contains(Request.Headers["Origin"].ToString()) == false) {
                 BuildResult(WebApiResult.Code.CheckFailed_CorsPolicy,
                     $"Request is not valid! origin:{Request.Headers["Origin"]} not in List:AppSettings.Origins"
@@ -154,7 +155,7 @@ namespace ServiceGuard.Commons {
         /// <summary>
         /// 處理請求
         /// </summary>
-        protected abstract bool ProcessData();
+        protected virtual bool ProcessData() => true;
 
         /// <summary>
         /// 建立-請求内容 (準備：正文 或 URL)

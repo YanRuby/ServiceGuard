@@ -1,4 +1,6 @@
-﻿using Npgsql;
+﻿#define DEBUG_UseFakeData // 定義使用模擬資料(假資料)
+
+using Npgsql;
 using Microsoft.EntityFrameworkCore;
 using ServiceGuard.Commons;
 using ServiceGuard.Databases;
@@ -7,11 +9,7 @@ using ServiceGuard.Sample.Models;
 // 注意: 此命名空間為：參考範本，禁止使用範本空間 ( 即：ServiceGuard.Sample 開頭的命名空間 )
 namespace ServiceGuard.Sample.Databases {
 
-    /*  範本背景假設 (參考範本實作時，請刪除此段背景假設)
-    *   - 用途：用戶資訊管理 ( UserManager )
-    *   - 命名：calss Npgsql_UserManagerDbCtx
-    */
-
+    // 構建
     /// <summary>
     /// Npgsql 資料庫上下文 (範本)
     /// </summary>
@@ -33,41 +31,44 @@ namespace ServiceGuard.Sample.Databases {
     /// <br></br>
     /// 
     /// </remarks>
-    public class Npgsql_UserManagerDbCtx : NpgsqlDbCtxTemplate {
-
-        #region Constructor 構建式
+    public partial class Npgsql_UserManagerDbCtx : NpgsqlDbCtxTemplate {
         public Npgsql_UserManagerDbCtx(ILogger<DbCtxTemplate> logger)
             : base(logger) {
-
         }
         public Npgsql_UserManagerDbCtx(DbContextOptions<DbCtxTemplate> options, ILogger<DbCtxTemplate> logger)
             : base(options, logger) {
-        
         }
-        #endregion
+    }
 
-        /* ============================================== */
-
-        #region ResultDataModel 結果資料模型(承載體)
+    // 結果資料模型  (承載體)
+    public partial class Npgsql_UserManagerDbCtx : NpgsqlDbCtxTemplate {
         /* **** 資料庫查詢所需承載的結果資料模型 ****
+        *
         *   - 命名規範：
         *       - 以資料模型後綴 + Model 為名稱 ( ...Xxx.Result> 即 XxxResultModel )
         *       - 範例：DbSet<UserDataModel.Xxx.Result> XxxResultModel { get; set; }
-        *       
+        *
         *   - 注解事項:
         *       - 不要為{結果資料模型}屬性進行任何的注解描述,例如加注： <summary> ... </summary>
         *       - {結果資料模型}的説明注解請於資料模型中進行描述,例如到 UserDataModel 中進行注解而非如下屬性
         */
 
         public DbSet<UserDataModel.Login.Result> LoginResultModel { get; set; }
+        public DbSet<UserDataModel.User.Result> UserResultModel { get; set; }
         // More...
 
-        #endregion
+    }
 
-        #region Service 服務 (業務邏輯)
+    // 服務  (業務邏輯)
+    public partial class Npgsql_UserManagerDbCtx : NpgsqlDbCtxTemplate {
         /* **** 此服務(UserManager用戶管理) 相關查詢邏輯 ****
         * 
         */
+
+        // 假資料模型實體
+        UserDataModel.Login.Result _loginResult;
+        UserDataModel.User.Result _userResult;
+        List<UserDataModel.User.Result> _userResultList;
 
         /// <summary>
         /// 用戶-登入
@@ -76,7 +77,14 @@ namespace ServiceGuard.Sample.Databases {
         /// <param name="result">結果資料載體</param>
         /// <returns></returns>
         public bool Login(UserDataModel.Login.Linq parameter, out UserDataModel.Login.Result? result) {
-            
+#if DEBUG_UseFakeData
+            // 使用模擬資料
+            _loginResult = new() {
+                SessionKey = "FakeData_SKey",
+            };
+            result = _loginResult;
+            return true;
+#else
             /* 建立-查詢指令
             *   - SQL 範例：SELECT 結果欄位 FROM 資料庫名稱 WHERE 條件
             */
@@ -101,11 +109,90 @@ namespace ServiceGuard.Sample.Databases {
 
             // 返回執行判斷結果
             return resultList.Count > 0; // 大於 0 筆資料即為查詢到結果，返回 true; 反之亦然。
+#endif
+        }
+
+        /// <summary>
+        /// 透過ID查詢用戶資料
+        /// </summary>
+        /// <param name="id">用戶ID</param>
+        /// <param name="result">結果資料載體</param>
+        /// <returns></returns>
+        public bool FetchUserById(string id, out UserDataModel.User.Result? result) {
+#if DEBUG_UseFakeData
+            _userResult = new() {
+                Id = "FakeData_123456",
+                Name = "FakeData_Alan",
+                Gender = "FakeData_Male",
+                Email = "FakeData_abc123@gmail.com",
+            };
+            result = _userResult;
+            return true;
+#else
+            /* 建立-查詢指令
+            *   - SQL 範例：SELECT 結果欄位 FROM 資料庫名稱 WHERE 條件
+            */
+            string cmd = "SELECT * FROM User WHERE id=@id";
+
+            // 建立-查詢參數
+            NpgsqlParameter[] param = new NpgsqlParameter[] {
+                new NpgsqlParameter("@id", id)
+            };
+
+            // 呼叫-資料庫
+            var resultList = UserResultModel.FromSqlRaw(cmd, param).ToList();
+
+            // 獲取一筆資料
+            result = resultList.FirstOrDefault(); // 多筆資料需注解此行
+
+            /* 獲取多筆資料
+            *   - 1. 請注解掉該行内容: result = resultList.FirstOrDefault();
+            *   - 2. 將 result 參數改爲: out List<UserDataModel.Login.Result>? result
+            */
+
+            // 返回執行判斷結果
+            return resultList.Count > 0; // 大於 0 筆資料即為查詢到結果，返回 true; 反之亦然。
+#endif
+        }
+
+        /// <summary>
+        /// 透過Name查詢用戶資料
+        /// </summary>
+        /// <param name="name">用戶名稱</param>
+        /// <param name="result">結果資料載體</param>
+        /// <returns></returns>
+        public bool FetchUserByName(string name, out List<UserDataModel.User.Result>? resultList) {
+#if DEBUG_UseFakeData
+            _userResultList = Enumerable.Range(1, 5).Select(index => new UserDataModel.User.Result {
+                Id = "FakeData_123456",
+                Name = "FakeData_Alan",
+                Gender = "FakeData_Male",
+                Email = "FakeData_abc123@gmail.com",
+            })
+            .ToList();
+            resultList = _userResultList;
+            return true;
+#else
+            /* 建立-查詢指令
+            *   - SQL 範例：SELECT 結果欄位 FROM 資料庫名稱 WHERE 條件
+            */
+            string cmd = "SELECT * FROM User WHERE name=@name";
+
+            // 建立-查詢參數
+            NpgsqlParameter[] param = new NpgsqlParameter[] {
+                new NpgsqlParameter("@name", name)
+            };
+
+            // 呼叫-資料庫
+            resultList = UserResultModel.FromSqlRaw(cmd, param).ToList();
+
+            // 返回執行判斷結果
+            return resultList.Count > 0; // 大於 0 筆資料即為查詢到結果，返回 true; 反之亦然。
+#endif
         }
 
         // More...
 
-        #endregion
-
     }
+
 }

@@ -43,16 +43,21 @@
             /************************************************************
             * Defualt Code 預設
             */
-            Undefine = -1,               // Undefine Message Info
-            Success = 0,                // 成功
-            Fail = 1,                // 失敗
+             Undefine = -1,               // Undefine Message Info
+              Success = 0,                // 成功
+                 Fail = 1,                // 失敗
             Exception = 3,                // 發生例外問題
             /************************************************************
             * CheckFailed 檢查失敗
             */
             //              = 100,              // 保留
-            CheckFailed_ValidData = 101,        // 資料有效性檢查失敗 >> [dbgMsg: DataHead|DataBody 内容不符合檢查標準]
+             CheckFailed_ValidData = 101,       // 資料有效性檢查失敗 >> [dbgMsg: DataHead|DataBody 内容不符合檢查標準]
             CheckFailed_CorsPolicy = 102,       // 跨域檢查失敗 >> [dbgMsg: DataHead 中找不到對應的跨域資訊]
+            /************************************************************
+            * Linq 查詢結果
+            */
+            //              = 200,              // 保留
+            Linq_NotFound = 201,
             /************************************************************
             * Customize Code 自定義
             */
