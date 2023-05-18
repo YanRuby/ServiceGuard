@@ -21,8 +21,14 @@ namespace ServiceGuard.Sample.Controllers {
         /// <returns>響應結果</returns>
         [HttpPost] // 請求數據在數據體
         public virtual async Task<object> Login([FromBody] RequestDataModel value) {
-            RequestData = value;    // 收到-請求内容
-            await BuildRequest();   // 解析-請求内容
+            RequestData = value; // 緩存-請求内容
+
+            // 解析-請求内容
+            if(await BuildRequest() == false) {
+                BuildResponse(); // 建立-響應(打包響應資訊)
+                Logger.LogInformation($"{ResponseData}\n");
+                return ResponseData; // 回復請求結果
+            }
 
             /*  **前置檢查-説明**
             *   - 1：檢查請求所携帶的請求正文是否符合此<資料模型(RequestDataModel)>
@@ -55,8 +61,7 @@ namespace ServiceGuard.Sample.Controllers {
             }
 
             BuildResponse(); // 建立-響應(打包響應資訊)
-            Logger.LogInformation($"{ResponseData}\n"); // Debug log
-
+            Logger.LogInformation($"{ResponseData}\n");
             return ResponseData; // 回復請求結果
         }
 
@@ -165,18 +170,15 @@ namespace ServiceGuard.Sample.Controllers {
         public SampleUserLoginController(ILogger<SampleUserLoginController> logger, Npgsql_UserManagerDbCtx dbContext) {
             Logger = logger;
             UserMgrDbCtx = dbContext;
-
-            ResponseData.SessionKey = "Test"; // ??
-            result = ResponseData;
+            Initialize(this);
         }
 
         /// <summary>
         /// **建立-響應**
         /// </summary>
         protected override void BuildResponse() {
-            ResponseData = (ResponseDataModel)result; // BUG ? 資料會不見
-            //ResponseData.ResultCode = result.ResultCode;
-            //ResponseData.ResultMsg = result.ResultMsg;
+            ResponseData.ResultCode = result.ResultCode;
+            ResponseData.ResultMsg = result.ResultMsg;
         }
 
     }

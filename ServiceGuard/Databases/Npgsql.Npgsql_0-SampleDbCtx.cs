@@ -115,7 +115,7 @@ namespace ServiceGuard.Sample.Databases {
         public bool FetchUserById(string id, out UserDataModel.User.Result? result) {
 #if DEBUG_UseFakeData
             result = new() {
-                Id = "FakeData_123456",
+                Id = "FakeData_" + id,
                 Name = "FakeData_Alan",
                 Gender = "FakeData_Male",
                 Email = "FakeData_abc123@gmail.com",
@@ -158,7 +158,7 @@ namespace ServiceGuard.Sample.Databases {
 #if DEBUG_UseFakeData
             resultList = Enumerable.Range(1, 5).Select(index => new UserDataModel.User.Result {
                 Id = "FakeData_123456",
-                Name = "FakeData_Alan",
+                Name = "FakeData_" + name,
                 Gender = "FakeData_Male",
                 Email = "FakeData_abc123@gmail.com",
             })

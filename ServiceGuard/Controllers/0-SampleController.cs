@@ -115,15 +115,17 @@ namespace ServiceGuard.Sample.Controllers {
         public SampleController(ILogger<SampleController> logger, Npgsql_UserManagerDbCtx dbContext) {
             Logger = logger;
             UserMgrDbCtx = dbContext;
-            result = ResponseData;
+            Initialize(this);
         }
 
         /// <summary>
         /// **建立-響應**
         /// </summary>
         protected override void BuildResponse() {
-            ResponseData = (ResponseDataModel)result;
+            ResponseData.ResultCode = result.ResultCode;
+            ResponseData.ResultMsg = result.ResultMsg;
         }
 
     }
+
 }

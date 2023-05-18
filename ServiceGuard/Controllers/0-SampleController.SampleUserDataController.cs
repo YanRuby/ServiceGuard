@@ -14,12 +14,19 @@ namespace ServiceGuard.Sample.Controllers {
     public partial class SampleUserDataController {
 
         [HttpGet("id/{id}")] // 請求數據附加在 URL
-        public virtual object GetUserById(
+        public virtual async Task<object> GetUserById(
             [FromRoute] string id
         /*  [FromRoute] string name...更多參數繼續往下寫(參數之間記得以逗號結尾，最後一個參數例外)*/) {   // 此變數名稱 id 必須和 HttpGet 標簽中的名稱 {id} 一致
 
             // 在此方法的最上方定義了路由方式：
-            // [HttpGet("{id}")] 即可以如此呼叫：GET api/SampleUserData/123 將獲得 id = 123
+            // [HttpGet("id/{id}")] 即可以如此呼叫：GET api/SampleUserData/id/123 將獲得 id = 123
+
+            // 解析-請求内容
+            if(await BuildRequest() == false) {
+                BuildResponse(); // 建立-響應(打包響應資訊)
+                Logger.LogInformation($"{ResponseData}\n");
+                return ResponseData; // 回復請求結果
+            }
 
             // 前置檢查
             if (id.Length > 0) {
@@ -37,8 +44,15 @@ namespace ServiceGuard.Sample.Controllers {
         }
 
         [HttpGet("name/{name}")] // 請求數據附加在 URL
-        public virtual object GetUserByName(
+        public virtual async Task<object> GetUserByName(
             [FromRoute] string name) {
+
+            // 解析-請求内容
+            if(await BuildRequest() == false) {
+                BuildResponse(); // 建立-響應(打包響應資訊)
+                Logger.LogInformation($"{ResponseData}\n");
+                return ResponseData; // 回復請求結果
+            }
 
             // 前置檢查
             if (name.Length > 0) {
@@ -70,13 +84,14 @@ namespace ServiceGuard.Sample.Controllers {
                     // 檢查：資料是否存在?
                     if (record != null) {
                         // 寫入-響應正文
+                        ResponseData.UserDataList = new(); // 創建一筆資料集
                         var data = new UserData() { // 創建一筆記錄
                             Id = record.Id,
                             Name = record.Name,
                             Gender = record.Gender,
                             Email = record.Email
                         };
-                        ResponseData.Data.Add(data); // 添加記錄到清單中
+                        ResponseData.UserDataList.Add(data); // 添加記錄到清單中
                         return true;
                     }
                     else {
@@ -118,6 +133,7 @@ namespace ServiceGuard.Sample.Controllers {
                     // 檢查：資料是否存在?
                     if (dataList != null) {
                         // 寫入-響應正文
+                        ResponseData.UserDataList = new(); // 創建一筆資料集
                         foreach (var record in dataList) {
                             var data = new UserData() { // 創建一筆記錄
                                 Id = record.Id,
@@ -125,7 +141,7 @@ namespace ServiceGuard.Sample.Controllers {
                                 Gender = record.Gender,
                                 Email = record.Email
                             };
-                            ResponseData.Data.Add(data); // 添加記錄到清單中
+                            ResponseData.UserDataList.Add(data); // 添加記錄到清單中
                         }
                         return true;
                     }
@@ -173,7 +189,7 @@ namespace ServiceGuard.Sample.Controllers {
             public int ResultCode { get; set; }     // 響應代碼 ( 操作成功時為 0 )
             public string ResultMsg { get; set; }   // 響應資訊 ( 錯誤時應記錄錯誤資訊 )
 
-            public List<UserData> Data { get; set; }
+            public List<UserData> UserDataList { get; set; }
 
             public override string ToString() {
                 return "\n" + base.ToString() + " {\n"
@@ -188,7 +204,6 @@ namespace ServiceGuard.Sample.Controllers {
             public string Gender { get; set; }
             public string Email { get; set; }
         }
-
         #endregion
 
         protected override ILogger Logger { get; set; }
@@ -201,18 +216,15 @@ namespace ServiceGuard.Sample.Controllers {
         public SampleUserDataController(ILogger<SampleUserDataController> logger, Npgsql_UserManagerDbCtx dbContext) {
             Logger = logger;
             UserMgrDbCtx = dbContext;
-
-            ResponseData.Data = new();
-            result = ResponseData;
+            Initialize(this);
         }
 
         /// <summary>
         /// **建立-響應**
         /// </summary>
         protected override void BuildResponse() {
-            ResponseData = (ResponseDataModel)result; // BUG ? 資料會不見
-            //ResponseData.ResultCode = result.ResultCode;
-            //ResponseData.ResultMsg = result.ResultMsg;
+            ResponseData.ResultCode = result.ResultCode;
+            ResponseData.ResultMsg = result.ResultMsg;
         }
 
     }

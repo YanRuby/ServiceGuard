@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
 using ServiceGuard.Middlewares;
+using ServiceGuard.AppLibs;
 
 // Main Program
 
@@ -99,6 +100,11 @@ builder.Services.AddEntityFrameworkNpgsql().AddDbContext<ServiceGuard.Sample.Dat
 * Others | Test
 */
 
+// 設定請求正文最大緩衝區大小
+builder.Services.Configure<IISServerOptions>(options  => {
+    options.MaxRequestBodyBufferSize = AppSettings.MaxRequestBodyBufferSize;
+});
+
 builder.Services.AddLogging(); // 依賴注入: ILogger
 var app = builder.Build();
 #endregion
@@ -128,11 +134,17 @@ app.Use(async (context, next) => { // RequestBodyReader
 
     var request = context.Request;
 
-    // 一般情況只有 Post 會讀請求正文，其他都讀 URL
-    /*if (request.Method != HttpMethods.Post) {
+    /*// 獲取所有的 URL 參數
+    var urlParameters = context.Request.Query;
+    Console.WriteLine($"Test1: {context.Request.RouteValues.Count > 0}\n\n");
+    // 獲取所有的表單參數
+    var formParameters = await context.Request.ReadFormAsync();
+    Console.WriteLine($"Test2: {formParameters}\n\n");
+*/
+    if (request.Method != HttpMethods.Post) {
         await next(context);
         return;
-    }*/
+    }
 
     // 讀取-請求正文
     using MemoryStream ms = new(); {
@@ -140,6 +152,8 @@ app.Use(async (context, next) => { // RequestBodyReader
         ms.Seek(0, SeekOrigin.Begin);
         request.Body = ms;
     }
+
+    
 
     // 執行-下一個中間件
     await next(context);
