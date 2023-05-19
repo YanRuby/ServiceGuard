@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using ServiceGuard.AppLibs;
+using Meowlien.Toolkit.Logging;
 
 namespace ServiceGuard.Commons {
 
@@ -158,20 +159,37 @@ namespace ServiceGuard.Commons {
         /// </summary>
         protected virtual bool ProcessData() => true;
 
-        string? logStr;
-        string formater = "{0,20} : {1,-10}\n";
+        /// <summary>
+        /// 建立-請求内容 (準備：正文 或 URL)
+        /// </summary>
+        /// <returns>是否建立成功</returns>
+        protected virtual async Task<bool> BuildRequest() {
 
-        protected virtual async Task<bool> HandleBuildRequestBody() {
-            // 載入請求正文
-            using (StreamReader reader = new(Request.Body)) {
+            // 創建-參數包格式化日志輸出工具 (非必要: 方便 Debug)
+            LogFormatter.Package logPkg = new("Request");
+            logPkg.CreateSection("Base");
+            logPkg.Append("Type", $"{Request.Method}");
+
+            // 是否擁有-路由參數：至少有 Controller 及 Action >> 因此不會有 else
+            RequestRouteValues = Request.RouteValues; // 緩存-路由參數
+            if (RequestRouteValues != null && RequestRouteValues.Count > 0) {
+                logPkg.CreateAndPushItems("Route", RequestRouteValues);
+            }
+
+            // 是否擁有-請求正文：請求正文内容有長度(即:有正文)
+            if ((Request.ContentLength ?? 0) > 0) {
+
+                // 載入-請求正文
+                using StreamReader reader = new(Request.Body);
                 try {
-                    Request.Body.Seek(0, SeekOrigin.Begin); // 重置-讀寫頭位置
+                    // 重置-讀寫頭位置
+                    Request.Body.Seek(0, SeekOrigin.Begin);
                     // 獲取-請求正文内容
-                    var content = await reader.ReadToEndAsync();
-                    JObjRequestData = JsonConvert.DeserializeObject<JObject>(content); // 反序列化
-                    logStr += $"|> Body -------------------------------------------------\n";
-                    logStr += string.Format(formater, "Content Length", $"{content.Length}{((content.Length > AppSettings.MaxRequestBodyBufferSize * 0.7) ? " (Big Data)\n" : "")}");
-                    logStr += $">>>>>>>>>>>>>>>>>>>>>> JSON\n{content}\n";
+                    var content = await reader.ReadToEndAsync(); 
+                    JObjRequestData = JsonConvert.DeserializeObject<JObject>(content); // 反序列化 JSON
+                    logPkg.CreateSection("Body");
+                    logPkg.Append("Content Length", $"{content.Length}{((content.Length > AppSettings.MaxRequestBodyBufferSize * 0.7) ? " (Big Data)\n" : "")}");
+                    logPkg.Append($"\n|> JSON\n{content}\n");
                 }
                 // 捕獲-例外狀況
                 catch (Exception ex) {
@@ -182,45 +200,14 @@ namespace ServiceGuard.Commons {
                     BuildResult(WebApiResult.Code.Exception, ex.Message);
                     return false;
                 }
+
             }
-            return true;
-        }
-
-        protected virtual void HandleBuildRequestRouteValues() {
-            RequestRouteValues = Request.RouteValues;
-            if (RequestRouteValues != null && RequestRouteValues.Count > 0) {
-                logStr += $"|> Route ------------------------------------------------\n";
-                int i = 0;
-                foreach (var param in RequestRouteValues) {
-                    if(++i == 3) logStr += $">>>>>>>>>>>>>>>>>>>>>> Values\n";
-                        logStr += string.Format(formater, $"{param.Key}", $"{param.Value}");
-                }
-                logStr += "\n";
-            }
-        }
-
-        /// <summary>
-        /// 建立-請求内容 (準備：正文 或 URL)
-        /// </summary>
-        /// <returns>是否建立成功</returns>
-        protected virtual async Task<bool> BuildRequest() {
-
-            logStr += $">>>>: Request >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n";
-            logStr += string.Format(formater, "Type", $"{Request.Method}");
-
-            HandleBuildRequestRouteValues();
-
-            // 請求正文内容有長度(即:有正文)
-            if ((Request.ContentLength ?? 0) > 0) {
-                await HandleBuildRequestBody(); // 處理-構建請求正文
-            } else {
-                logStr += $"|> Body -------------------------------------------------\n";
-                logStr += string.Format(formater, "Data", "No Data");
+            else {
+                logPkg.CreateSection("Body");
+                logPkg.Append("Data", "No Data");
             }
 
-            logStr += $">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> End\n";
-            Logger.LogInformation("\n" + logStr);
-
+            Logger.LogInformation(logPkg.ToString());
             return true;
         }
         //protected virtual 
